@@ -1,9 +1,17 @@
-FROM golang:1.15
-WORKDIR /mnt/homework
-COPY . .
-RUN go build
+FROM golang:alpine as builder
 
-# Docker is used as a base image so you can easily start playing around in the container using the Docker command line client.
-FROM docker
-COPY --from=0 /mnt/homework/homework-object-storage /usr/local/bin/homework-object-storage
-RUN apk add bash curl
+WORKDIR /app
+
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-w -s" .
+
+FROM scratch
+
+WORKDIR /app
+
+COPY --from=builder /app/homework-object-storage /usr/bin/
+
+EXPOSE 8080
+
+ENTRYPOINT ["homework-object-storage"]
