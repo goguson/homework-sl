@@ -26,9 +26,11 @@ func (s *Service) run() {
 	done := make(chan error)
 	go func() {
 		defer close(done)
+
 		s.logger.Info().Msgf("url: %s", s.serverURL)
 		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			_, _ = fmt.Fprintln(w, "Hello, World!")
+
+			_, _ = fmt.Fprintln(w, "ds")
 		})
 		err := http.ListenAndServe(s.serverURL, nil)
 		if err != nil {

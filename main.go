@@ -20,6 +20,7 @@ func Start() int {
 	var err error
 	log := zerolog.New(os.Stdout)
 	_ = os.Setenv("SERVICE_URL", ":8080")
+
 	cfg := Config{}
 	err = senv.Load(&cfg)
 	if err != nil {
