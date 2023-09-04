@@ -28,7 +28,9 @@ func Start() int {
 		return exitErr
 	}
 
-	svc, err := newService(WithServerURL(cfg.URL))
+	svc, err := newService(
+		WithServerURL(cfg.URL),
+		WithStorage("unix:///Users/goguson/.colima/default/docker.sock"))
 	if err != nil {
 		log.Error().Err(err)
 		return exitErr

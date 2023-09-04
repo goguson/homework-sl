@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/goguson/homework-object-storage/storage"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"net/http"
@@ -19,6 +20,7 @@ type Config struct {
 
 type Service struct {
 	logger    zerolog.Logger
+	store     storage.Store
 	serverURL string
 }
 
@@ -28,11 +30,8 @@ func (s *Service) run() {
 		defer close(done)
 
 		s.logger.Info().Msgf("url: %s", s.serverURL)
-		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 
-			_, _ = fmt.Fprintln(w, "ds")
-		})
-		err := http.ListenAndServe(s.serverURL, nil)
+		err := http.ListenAndServe(s.serverURL, Routes(s))
 		if err != nil {
 			done <- err
 			return
@@ -91,6 +90,18 @@ func WithServerURL(url string) func(*Service) error {
 			return errors.New("server url is empty")
 		}
 		svc.serverURL = url
+		return nil
+	}
+}
+
+func WithStorage(host string) func(*Service) error {
+	return func(svc *Service) error {
+		c, err := storage.NewSocketClient(host)
+		if err != nil {
+			return fmt.Errorf("storage.NewSocketClient: %w", err)
+		}
+
+		svc.store = storage.NewStore(c)
 		return nil
 	}
 }
