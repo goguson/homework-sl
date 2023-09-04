@@ -4,50 +4,84 @@ import (
 	"context"
 	"fmt"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
+	"strings"
 )
 
-const serviceName = "minio/minio"
+const imageName = "minio/minio"
 const network = "homework-object-storage_amazin-object-storage"
 
-type Socket struct {
-	c *client.Client
+type DockerFetcher interface {
+	ContainerList(ctx context.Context, options types.ContainerListOptions) ([]types.Container, error)
+	ContainerInspect(ctx context.Context, containerID string) (types.ContainerJSON, error)
 }
 
-func NewSocket(c *client.Client) *Socket {
-	return &Socket{c: c}
+type Client struct {
+	c DockerFetcher
 }
 
-// FetchIPAddresses fetches Addresses based on network name,
-// it is said I am not allowed to use copied ipv4 from docker-compose,
-// so I will go with the network name instead.
-func (s *Socket) FetchIPAddresses(ctx context.Context) ([]string, error) {
-	containers, err := s.c.ContainerList(ctx, types.ContainerListOptions{})
+type Instance struct {
+	ID        string
+	IP        string
+	accessKey string
+	secretKey string
+}
+
+func NewClient(c DockerFetcher) *Client {
+	return &Client{c: c}
+}
+
+func NewInstance(id, ip, accessKey, secretKey string) (Instance, error) {
+	if id == "" || ip == "" || accessKey == "" || secretKey == "" {
+		return Instance{},
+			fmt.Errorf("at least one missing field value: id: %s, ip: %s, accessKey: %s, secretKey: %s",
+				id, ip, accessKey, secretKey)
+	}
+	return Instance{
+		ID:        id,
+		IP:        ip,
+		accessKey: accessKey,
+		secretKey: secretKey,
+	}, nil
+}
+
+// FetchMinioInstances make use of network and image name to filter out the instances
+func (s *Client) FetchMinioInstances(ctx context.Context) ([]Instance, error) {
+	res, err := s.c.ContainerList(ctx, types.ContainerListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("ContainerList: %w", err)
 	}
-	if len(containers) == 0 {
-		return nil, fmt.Errorf("no running containers: len(containers): 0")
-	}
-
-	var minioAddresses []string
-	for _, container := range containers {
-		if container.Image == "minio/minio" {
-			_, ok := container.NetworkSettings.Networks[network]
-			if !ok {
-				continue
-			}
-			minioAddresses = append(minioAddresses, container.NetworkSettings.Networks[network].IPAddress)
+	var results []Instance
+	for _, re := range res {
+		if re.Image != imageName {
+			continue
 		}
 
-	}
-	if len(minioAddresses) == 0 {
-		return nil, fmt.Errorf("no running minio containers with expected network %s", network)
-	}
+		r, err := s.c.ContainerInspect(ctx, re.ID)
+		if err != nil {
+			continue
+		}
 
-	return minioAddresses, nil
-}
+		net, ok := r.NetworkSettings.Networks[network]
+		if !ok {
+			continue
+		}
 
-func (s *Socket) FetchSecrets(ctx context.Context) ([]string, error) {
-	return nil, nil
+		var secretKey string
+		var accessKey string
+		for _, e := range r.Config.Env {
+			if strings.Contains(e, "MINIO_SECRET_KEY=") {
+				secretKey = e[17:]
+			}
+			if strings.Contains(e, "MINIO_ACCESS_KEY=") {
+				accessKey = e[17:]
+			}
+		}
+		i, err := NewInstance(r.ID, net.IPAddress, accessKey, secretKey)
+		if err != nil {
+			// we can have a log for tracing semi-broken instances for future investigation
+			continue
+		}
+		results = append(results, i)
+	}
+	return results, nil
 }
