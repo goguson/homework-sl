@@ -11,6 +11,10 @@ import (
 	"time"
 )
 
+const uploadErrMsg = "could not read form file"
+const downloadErrMsg = "problem occurred during download of data from another server"
+const fileReadErrMsg = "could not read file from storage"
+
 func ZerologMiddleware(logger zerolog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -40,14 +44,14 @@ func Routes(svc *Service) *chi.Mux {
 		file, header, err := r.FormFile("file")
 		if err != nil {
 			logger.Err(err).Send()
-			http.Error(w, "could not read form file", http.StatusInternalServerError)
+			http.Error(w, fileReadErrMsg, http.StatusInternalServerError)
 		}
 		defer file.Close()
 
 		err = svc.store.Put(ctx, objectID, file, header)
 		if err != nil {
 			logger.Err(err).Send()
-			http.Error(w, "error during upload on the server side", http.StatusInternalServerError)
+			http.Error(w, uploadErrMsg, http.StatusInternalServerError)
 			return
 		}
 
@@ -70,7 +74,7 @@ func Routes(svc *Service) *chi.Mux {
 				http.Error(w, "object not found", http.StatusNotFound)
 				return
 			}
-			http.Error(w, "problem occurred on download of data", http.StatusInternalServerError)
+			http.Error(w, downloadErrMsg, http.StatusInternalServerError)
 			return
 		}
 
@@ -78,7 +82,7 @@ func Routes(svc *Service) *chi.Mux {
 		_, err = io.Copy(w, reader)
 		if err != nil {
 			logger.Err(fmt.Errorf("io.Copy: %w", err)).Send()
-			http.Error(w, "problem occurred on download of data", http.StatusInternalServerError)
+			http.Error(w, downloadErrMsg, http.StatusInternalServerError)
 			return
 		}
 

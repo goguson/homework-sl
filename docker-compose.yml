@@ -49,6 +49,7 @@ services:
         ipv4_address: 169.253.0.5
     environment:
       - DOCKER_HOST=unix:///var/run/docker.sock
+      - SERVICE_URL=:8080
     volumes:
     - /var/run/docker.sock:/var/run/docker.sock
 
