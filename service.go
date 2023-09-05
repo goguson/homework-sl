@@ -15,7 +15,8 @@ import (
 )
 
 type Config struct {
-	URL string `senv:"SERVICE_URL"`
+	URL        string `senv:"SERVICE_URL"`
+	DockerHost string `senv:"DOCKER_HOST"`
 }
 
 type Service struct {
@@ -102,6 +103,13 @@ func WithStorage(host string) func(*Service) error {
 		}
 
 		svc.store = storage.NewStore(c)
+		return nil
+	}
+}
+
+func WithZerolog(l zerolog.Logger) func(*Service) error {
+	return func(svc *Service) error {
+		svc.logger = l
 		return nil
 	}
 }

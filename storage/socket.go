@@ -6,14 +6,16 @@ import (
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+	"github.com/rs/zerolog/log"
 	"hash/fnv"
 	"slices"
 	"strings"
 )
 
 const (
-	imageName = "minio/minio"
-	network   = "homework-object-storage_amazin-object-storage"
+	imageName      = "minio/minio"
+	network        = "homework-object-storage_amazin-object-storage"
+	defaultApiPort = ":9000"
 )
 
 type Fetcher interface {
@@ -57,7 +59,6 @@ func (nodes NodeDescriptions) SelectDescriptionByID(id string) (NodeDescription,
 	return node, nil
 }
 
-// FetchNodeDescriptions make use of network and image name to filter out the instances
 func (s *Socket) FetchNodeDescriptions(ctx context.Context) (NodeDescriptions, error) {
 	res, err := s.d.ContainerList(ctx, types.ContainerListOptions{})
 	if err != nil {
@@ -72,17 +73,22 @@ func (s *Socket) FetchNodeDescriptions(ctx context.Context) (NodeDescriptions, e
 
 		r, err := s.d.ContainerInspect(ctx, re.ID)
 		if err != nil {
+			log.Ctx(ctx).Error().Msgf("ContainerInspect: %s", err.Error())
 			continue
 		}
 
 		net, ok := r.NetworkSettings.Networks[network]
 		if !ok {
+			log.Ctx(ctx).Error().Msgf("ContainerInspect: %s", "network: %s not found for %s", network, r.Name)
 			continue
 		}
 
 		var secretKey string
 		var accessKey string
 		for _, e := range r.Config.Env {
+			if secretKey != "" && accessKey != "" {
+				break
+			}
 			if strings.Contains(e, "MINIO_SECRET_KEY=") {
 				secretKey = e[17:]
 				continue
@@ -95,7 +101,7 @@ func (s *Socket) FetchNodeDescriptions(ctx context.Context) (NodeDescriptions, e
 
 		i, err := newNode(r.ID, net.IPAddress, accessKey, secretKey)
 		if err != nil {
-			// we can have a log for tracing semi-broken instances for future investigation
+			log.Ctx(ctx).Error().Msgf("newNode: %s", err.Error())
 			continue
 		}
 		results = append(results, i)
@@ -104,7 +110,7 @@ func (s *Socket) FetchNodeDescriptions(ctx context.Context) (NodeDescriptions, e
 	slices.SortFunc(results, func(left, right NodeDescription) int {
 		return cmp.Compare(strings.ToLower(left.accessKey), strings.ToLower(right.accessKey))
 	})
-	var m map[int]NodeDescription
+	m := map[int]NodeDescription{}
 	for i, result := range results {
 		m[i] = result
 	}
@@ -120,7 +126,7 @@ func newNode(id, ip, accessKey, secretKey string) (NodeDescription, error) {
 	}
 	return NodeDescription{
 		id:        id,
-		ip:        ip,
+		ip:        ip + defaultApiPort,
 		accessKey: accessKey,
 		secretKey: secretKey,
 	}, nil

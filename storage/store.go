@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/minio/minio-go/v7"
+	"github.com/rs/zerolog/log"
 	"io"
 	"net/http"
 )
@@ -31,13 +32,23 @@ func (c storage) Put(ctx context.Context, objectID string, r *http.Request) erro
 	if err != nil {
 		return fmt.Errorf("FormFile: %w", err)
 	}
-
 	defer file.Close()
+
+	exist, err := node.BucketExists(ctx, bucketName)
+	if err != nil {
+		return fmt.Errorf("BucketExists: %w", err)
+	}
+
+	if !exist {
+		err = node.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{})
+		if err != nil {
+			return fmt.Errorf("MakeBucket: %w", err)
+		}
+	}
 
 	opts := minio.PutObjectOptions{
 		ContentType: header.Header.Get("Content-Type"),
 	}
-
 	_, err = node.PutObject(ctx, bucketName, objectID, file, header.Size, opts)
 	if err != nil {
 		return fmt.Errorf("PutObject: %w", err)
@@ -61,7 +72,8 @@ func (c storage) Get(ctx context.Context, objectID string, w http.ResponseWriter
 
 	stat, err := reader.Stat()
 	if err != nil {
-		return fmt.Errorf("reader.Stat: %w", err)
+		log.Ctx(ctx).Err(fmt.Errorf("reader.Stat: %w", err)).Send()
+		return minio.ToErrorResponse(err)
 	}
 
 	w.Header().Set("Content-Type", stat.ContentType)

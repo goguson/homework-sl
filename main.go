@@ -24,15 +24,18 @@ func Start() int {
 	cfg := Config{}
 	err = senv.Load(&cfg)
 	if err != nil {
-		log.Error().Err(err)
-		return exitErr
+		log.Err(err).Send()
+		//return exitErr
 	}
 
 	svc, err := newService(
+		WithZerolog(log),
 		WithServerURL(cfg.URL),
-		WithStorage("unix:///Users/goguson/.colima/default/docker.sock"))
+		//WithStorage("unix:///Users/goguson/.colima/default/docker.sock"))
+		WithStorage(cfg.DockerHost))
+
 	if err != nil {
-		log.Error().Err(err)
+		log.Err(err).Send()
 		return exitErr
 	}
 

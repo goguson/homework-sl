@@ -1,38 +1,23 @@
-Hey there! Hope you'll have at least as much fun with this exercise, as we had designing it 😄
+Hello!
 
-Your starting point is a local Docker daemon with multiple self-contained Minio Object Storage instances.
-They can be identified by having amazin-object-storage-node in their container name.
-Each of them listens on port 9000.
-They have access keys and secret keys configured through Docker using environment variables.
-You can assume that the set of Minio instances doesn't change in a "test scenario", though you shouldn't assume any constant number of them existing.
+I thought I would have some spare time since last friday, until now - as you may guess, I was totally wrong and i have only little time in the morning and late night :/
 
-As you're task you'll be creating a simple **stateless** distributed Object Storage Gateway, listening on HTTP port 3000.
-As its main functionality it should offer two endpoints:
- - **PUT** */object/{id}* - The request body should be used as the object body. If the file already exists, you should either overwrite it, or return an error, your choice.
- - **GET** */object/{id}* - Should respond with the object body, or return code 404 if it doesn't exist.
+I wanted to be pragmatic with this task.
 
-When handling a get or put request, you should consistently (wrt the ID) choose one of the Minio instances and use it to serve the request.
-You should use varying Minio instances depending on the ID.
+Making it run on colima was annoying, but I managed to find the issue :D
 
-The IDs are alphanumeric, up to 32 characters.
+What could be done:
 
-The container your app runs in will have /var/run/docker.sock mounted and will share a docker network with the Minio instances.
-Any information about the Minio instances (such as the IP address, or the access/secret keys) should be read dynamically from the local Docker daemon.
+- [ ] unit/integration tests - prepared some interfaces and injected dependencies, but I am running low on personal time
+- [x] logging as a middleware
+- [x] healthcheck endpoint, unnecessary, but low cost effort and it is good to have it preconfigured anyway :D
+- [ ] limiting the size of uploads?
+- [ ] optional rate limiting, but for the size and scope of this task, I think it is not needed
+- [ ] tracing - same as above, logging should be sufficient
 
-You should use the [Docker client library](https://github.com/moby/moby/tree/master/client),
-the [Minio client library](https://github.com/minio/minio-go),
-as well as any other libraries you may deem necessary or useful (within reason).
-i.e. you can use the [Gorrila Mux](https://github.com/gorilla/mux) library as an HTTP router,
-but feel free to use a different one or even just the standard library.
-
-You should implement proper error handling. (the app shouldn't instantly crash if something doesn't work)
-
-There's a docker-compose.yml file included you can use as a starting point. The comments there contain some tips.
-Feel free to modify the docker-compose.yml file, as well as the Dockerfile, as you see fit.
-
-The project should work out of the box using
-```
-docker-compose up --build
-```
-
-Good luck!
+What is unnecessary, but is here?
+ - main/service.go boilerplate. I used it as a base, for now it is overkill, 
+as there is not much to dispose or gracefully shutdown, yet it was a low cost effort and is not a big cognitive load to understand 
+ - organisation of code might be a little over-engineered, but I wanted to play around a bit with ideas.
+ - Hashing the objectID in order to create simple load balancing for the 3 instances of Minio. I think it is what you expect, based on the task, but It comes with the problems like: what if the minio node hashed for given objectID is not accessible at the moment? We return error. We can think of having duplicated data on other nodes as well, but the need of "simple load balancing" is out of the window. Similar case with having the problem being covered by replication on the Minio side. Maybe I will have some time to write test for that, at the moment only manually tested
+ - http layer is a little bit leaked into the storage, but due to the time constraints I have for the next week/2, I gave up on refactoring that part for now

@@ -1,0 +1,16 @@
+PUT http://localhost:3000/object/aaaaaaaaaaaaaaaaaaaaaaaaaaa
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="big_ounce.png"
+Content-Type: image/png
+
+< ./files/big_ounce.png
+--WebAppBoundary--
+
+
+###
+GET http://localhost:3000/object/aaaaaaaaaaaaaaaaaaaaaaaaaaa1
+Accept: application/json
+
+
