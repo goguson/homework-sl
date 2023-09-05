@@ -41,6 +41,11 @@ func Routes(svc *Service) *chi.Mux {
 		logger := zerolog.Ctx(ctx)
 		objectID := chi.URLParam(r, "id")
 
+		if objectID == "" {
+			http.Error(w, "id is empty", http.StatusBadRequest)
+			return
+		}
+
 		file, header, err := r.FormFile("file")
 		if err != nil {
 			logger.Err(err).Send()
@@ -62,6 +67,11 @@ func Routes(svc *Service) *chi.Mux {
 		ctx := r.Context()
 		objectID := chi.URLParam(r, "id")
 		logger := zerolog.Ctx(ctx)
+
+		if objectID == "" {
+			http.Error(w, "id is empty", http.StatusBadRequest)
+			return
+		}
 
 		reader, err := svc.store.Get(ctx, objectID)
 		defer reader.Close()
