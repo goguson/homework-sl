@@ -46,9 +46,9 @@ func NewSocketClient(host string) (Socket, error) {
 
 }
 func (nodes NodeDescriptions) SelectDescriptionByID(id string) (NodeDescription, error) {
-	k, err := calculateHash(id, expectedNodeCount)
+	k, err := pickNodeNumber(id, expectedNodeCount)
 	if err != nil {
-		return NodeDescription{}, fmt.Errorf("calculateHash: %w", err)
+		return NodeDescription{}, fmt.Errorf("pickNodeNumber: %w", err)
 	}
 
 	node, ok := nodes[k]
@@ -132,9 +132,17 @@ func newNode(id, ip, accessKey, secretKey string) (NodeDescription, error) {
 	}, nil
 }
 
-func calculateHash(id string, instanceCount int) (int, error) {
+func pickNodeNumber(objectID string, instanceCount int) (int, error) {
+	if objectID == "" {
+		return 0, fmt.Errorf("objectID is empty")
+	}
+
+	if instanceCount < 2 {
+		return 0, fmt.Errorf("instanceCount is below minimal value: 2")
+	}
+
 	hash := fnv.New32a()
-	_, err := hash.Write([]byte(id))
+	_, err := hash.Write([]byte(objectID))
 	if err != nil {
 		return 0, fmt.Errorf("CalculateHash: %w", err)
 	}
