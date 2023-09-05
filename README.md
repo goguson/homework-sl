@@ -11,7 +11,7 @@ What could be done:
 - [ ] unit/integration tests - prepared some interfaces and injected dependencies, but I am running low on personal time
 - [x] logging as a middleware
 - [x] healthcheck endpoint, unnecessary, but low cost effort and it is good to have it preconfigured anyway :D
-- [ ] limiting the size of uploads?
+- [ ] limiting the size of uploaded file
 - [ ] optional rate limiting, but for the size and scope of this task, I think it is not needed
 - [ ] tracing - same as above, logging should be sufficient
 

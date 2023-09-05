@@ -1,9 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/minio/minio-go/v7"
 	"github.com/rs/zerolog"
+	"io"
 	"net/http"
 	"time"
 )
@@ -29,31 +32,56 @@ func Routes(svc *Service) *chi.Mux {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(10 * time.Second))
 
-	// Define the route for handling PUT requests
 	r.Put("/object/{id:[a-zA-Z0-9]+}", func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
+		logger := zerolog.Ctx(ctx)
 		objectID := chi.URLParam(r, "id")
 
-		err := svc.store.Put(ctx, objectID, r)
+		file, header, err := r.FormFile("file")
 		if err != nil {
-			zerolog.Ctx(r.Context()).Error().Err(err).Msg("error putting object")
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			logger.Err(err).Send()
+			http.Error(w, "could not read form file", http.StatusInternalServerError)
+		}
+		defer file.Close()
+
+		err = svc.store.Put(ctx, objectID, file, header)
+		if err != nil {
+			logger.Err(err).Send()
+			http.Error(w, "error during upload on the server side", http.StatusInternalServerError)
 			return
 		}
+
 		w.WriteHeader(http.StatusOK)
 	})
 
-	// Define the route for handling GET requests
 	r.Get("/object/{id:[a-zA-Z0-9]+}", func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		objectID := chi.URLParam(r, "id")
+		logger := zerolog.Ctx(ctx)
 
-		err := svc.store.Get(ctx, objectID, w, r)
+		reader, err := svc.store.Get(ctx, objectID)
+		defer reader.Close()
+
+		stat, err := reader.Stat()
 		if err != nil {
-			zerolog.Ctx(r.Context()).Error().Err(err).Send()
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			logger.Err(fmt.Errorf("reader.Stat: %w", err)).Send()
+			mErr := minio.ToErrorResponse(err)
+			if mErr.Code == "NoSuchKey" {
+				http.Error(w, "object not found", http.StatusNotFound)
+				return
+			}
+			http.Error(w, "problem occurred on download of data", http.StatusInternalServerError)
 			return
 		}
+
+		w.Header().Set("Content-Type", stat.ContentType)
+		_, err = io.Copy(w, reader)
+		if err != nil {
+			logger.Err(fmt.Errorf("io.Copy: %w", err)).Send()
+			http.Error(w, "problem occurred on download of data", http.StatusInternalServerError)
+			return
+		}
+
 	})
 
 	r.Get("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
@@ -64,7 +92,7 @@ func Routes(svc *Service) *chi.Mux {
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		logger := zerolog.Ctx(r.Context())
 		logger.Info().Msg("hello world")
-		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("hello world"))
 	})
 
 	return r
