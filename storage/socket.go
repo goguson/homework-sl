@@ -79,7 +79,7 @@ func (s *Socket) FetchNodeDescriptions(ctx context.Context) (NodeDescriptions, e
 
 		net, ok := r.NetworkSettings.Networks[network]
 		if !ok {
-			log.Ctx(ctx).Error().Msgf("ContainerInspect: %s", "network: %s not found for %s", network, r.Name)
+			log.Ctx(ctx).Error().Msgf("ContainerInspect: %s network not found", network)
 			continue
 		}
 

@@ -22,3 +22,8 @@ as there is not much to dispose or gracefully shutdown, yet it was a low cost ef
  - http layer is a little bit leaked into the storage, but due to the time constraints I have for the next week/2, I gave up on refactoring that part for now
  - some interfaces and design decisions on storage pkg might add unnecessary cognitive load and be useless, it is my kinda shot at the knee moment
  - filtering out instances based on image rather than name, as suggested in the original readme
+ - automatic creation of bucket on the service start? For now, I managed that during PUT requests
+ - Handlers are not the prettiest one as they have logic for fetching the body and managing that in them, before it is sent to the store, but for the size and scope of this task, I think it is good enough
+### Other
+
+- I am fan of flat structures. For this repo I went for simple, almost flat structure, as I saw no need for pck like cmd/pkg and so on.

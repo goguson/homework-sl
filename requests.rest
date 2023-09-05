@@ -10,7 +10,7 @@ Content-Type: image/png
 
 
 ###
-GET http://localhost:3000/object/aaaaaaaaaaaaaaaaaaaaaaaaaaa1
+GET http://localhost:3000/object/aaaaaaaaaaaaaaaaaaaaaaaaaa1
 Accept: application/json
 
 
